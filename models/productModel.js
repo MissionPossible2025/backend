@@ -1,0 +1,172 @@
+// models/productModel.js
+import mongoose from 'mongoose';
+
+const productSchema = new mongoose.Schema({
+  productId: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  brand: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  unit: {
+    type: String,
+    trim: true,
+    default: 'piece'
+  },
+  description: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  category: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  // Base price (for products without variations)
+  price: {
+    type: Number,
+    min: 0
+  },
+  discountedPrice: {
+    type: Number,
+    min: 0
+  },
+  discountPercent: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0
+  },
+  taxPercentage: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0
+  },
+  // Stock status (for products without variations)
+  stockStatus: {
+    type: String,
+    enum: ['in_stock', 'out_of_stock'],
+    default: 'in_stock'
+  },
+      // Multi-attribute variations system
+      attributes: [{
+        name: {
+          type: String,
+          required: true,
+          trim: true
+        },
+        options: [{
+          name: {
+            type: String,
+            required: true,
+            trim: true
+          },
+          displayName: {
+            type: String,
+            trim: true
+          }
+        }]
+      }],
+      // All possible combinations of attributes
+      variants: [{
+        // Combination of attribute values (e.g., {Storage: "64GB", Color: "Black"})
+        combination: {
+          type: Map,
+          of: String,
+          required: true
+        },
+        price: {
+          type: Number,
+          required: true,
+          min: 0
+        },
+        discountedPrice: {
+          type: Number,
+          min: 0
+        },
+        discountPercent: {
+          type: Number,
+          min: 0,
+          max: 100,
+          default: 0
+        },
+        stock: {
+          type: String,
+          enum: ['in_stock', 'out_of_stock'],
+          default: 'in_stock'
+        },
+        images: [{
+          type: String,
+          trim: true
+        }],
+        isActive: {
+          type: Boolean,
+          default: true
+        }
+      }],
+      // Whether this product has multi-attribute variations
+      hasVariations: {
+        type: Boolean,
+        default: false
+      },
+  photo: {
+    type: String,
+    trim: true
+  },
+  photos: [{
+    type: String,
+    trim: true
+  }],
+  seller: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  sellerName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  sellerEmail: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  // Display order within category (for seller arrangement)
+  displayOrder: {
+    type: Number,
+    default: 0
+  },
+  // Additional fields for each category
+  specifications: {
+    type: Map,
+    of: String
+  }
+}, { 
+  timestamps: true 
+});
+
+// Index for better search performance
+productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ category: 1 });
+productSchema.index({ seller: 1 });
+
+const Product = mongoose.model('Product', productSchema);
+
+export default Product;
