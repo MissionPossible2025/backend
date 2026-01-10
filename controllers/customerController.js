@@ -209,7 +209,7 @@ const customerSignup = async (req, res) => {
         name: permittedCustomer.name,
         sellerId: permittedCustomer.sellerId
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET ,
       { expiresIn: '90d' } // 3 months
     );
 
@@ -261,7 +261,7 @@ const customerLogin = async (req, res) => {
         name: customer.name,
         sellerId: customer.sellerId
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET ,
       { expiresIn: '90d' } // 3 months
     );
 
