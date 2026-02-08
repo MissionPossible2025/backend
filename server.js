@@ -17,18 +17,20 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 const app = express();
+
 app.use(express.json());
 app.use(cors({
-    origin: "*",
-    methods: "GET,POST,PUT,DELETE",
-    allowedHeaders: "Content-Type, Authorization"
-  }));
+  origin: "*",
+  methods: "GET,POST,PUT,DELETE",
+  allowedHeaders: "Content-Type, Authorization"
+}));
 
 // Static serving for uploaded files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Routes
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
@@ -39,19 +41,19 @@ app.use("/api/highlighted-products", highlightedProductRoutes);
 app.use("/api/imagekit", imagekitRoutes);
 app.use("/api/logo", logoRoutes);
 
-// MongoDB connection
-await connectDB();
-
+// Health / root
 app.get('/', (req, res) => res.send('Server is running'));
+app.get('/health', (req, res) => res.status(200).send('OK'));
 
-const PORT = process.env.PORT || 5000;
-// Listen on all network interfaces (0.0.0.0) so mobile devices can access
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Accessible at: http://localhost:${PORT}`);
-  if (process.env.PUBLIC_BASE_URL) {
-    console.log(`Mobile access: ${process.env.PUBLIC_BASE_URL}`);
-  } else {
-    console.log('⚠️  PUBLIC_BASE_URL not set - mobile image loading may not work correctly');
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+
+  try {
+    await connectDB();
+    console.log('✅ MongoDB connected');
+  } catch (error) {
+    console.error('❌ MongoDB connection failed:', error.message);
   }
 });
