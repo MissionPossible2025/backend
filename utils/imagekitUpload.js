@@ -4,6 +4,109 @@
 
 import imagekit from '../config/imagekit.js';
 
+// Basic image validation defaults
+const DEFAULT_MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const DEFAULT_ALLOWED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif'
+];
+const DEFAULT_ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+// Retry config for ImageKit uploads (transient network/API failures)
+const UPLOAD_MAX_RETRIES = 3;
+const UPLOAD_RETRY_DELAY_MS = 1000;
+
+/**
+ * Return true if the error looks retryable (network, 5xx, timeout, rate limit).
+ */
+const isRetryableUploadError = (error) => {
+  if (!error) return false;
+  const msg = (error.message || '').toLowerCase();
+  const code = error.statusCode || error.code || (error.response && error.response.status);
+  if (typeof code === 'number' && code >= 500 && code < 600) return true;
+  if (code === 429) return true;
+  if (msg.includes('econnreset') || msg.includes('etimedout') || msg.includes('network') || msg.includes('timeout') || msg.includes('econnrefused')) return true;
+  return false;
+};
+
+/**
+ * Validate that a file looks like a real image before attempting upload.
+ * Throws an Error if validation fails so callers can fail-fast.
+ */
+const validateImageFileForUpload = (
+  file,
+  fileName,
+  {
+    maxSizeBytes = DEFAULT_MAX_IMAGE_SIZE_BYTES,
+    allowedMimeTypes = DEFAULT_ALLOWED_IMAGE_MIME_TYPES,
+    allowedExtensions = DEFAULT_ALLOWED_IMAGE_EXTENSIONS
+  } = {}
+) => {
+  // If we were given a raw Buffer, we don't have metadata to validate.
+  if (!file || Buffer.isBuffer(file)) {
+    return;
+  }
+
+  const mimetype = file.mimetype;
+  const originalName = file.originalname || fileName || '';
+  const extension = originalName.includes('.') ? originalName.split('.').pop().toLowerCase() : '';
+
+  let size;
+  if (typeof file.size === 'number') {
+    size = file.size;
+  } else if (file.buffer && typeof file.buffer.length === 'number') {
+    size = file.buffer.length;
+  }
+
+  // Type validation
+  if (mimetype) {
+    if (!mimetype.startsWith('image/')) {
+      console.error('[validateImageFileForUpload] File is not an image based on mimetype:', {
+        mimetype,
+        fileName: originalName
+      });
+      throw new Error('Invalid file type. Only image uploads are allowed.');
+    }
+
+    if (allowedMimeTypes.length && !allowedMimeTypes.includes(mimetype)) {
+      console.error('[validateImageFileForUpload] Unsupported image mimetype:', {
+        mimetype,
+        allowedMimeTypes,
+        fileName: originalName
+      });
+      throw new Error('Unsupported image type. Please upload a JPG, PNG, WEBP, or GIF image.');
+    }
+  }
+
+  // Extension validation (extra safety)
+  if (extension && allowedExtensions.length && !allowedExtensions.includes(extension)) {
+    console.error('[validateImageFileForUpload] Unsupported image extension:', {
+      extension,
+      allowedExtensions,
+      fileName: originalName
+    });
+    throw new Error('Unsupported image file extension.');
+  }
+
+  // Size validation
+  if (typeof size === 'number' && maxSizeBytes && size > maxSizeBytes) {
+    console.error('[validateImageFileForUpload] Image exceeds maximum allowed size:', {
+      size,
+      maxSizeBytes,
+      fileName: originalName
+    });
+    throw new Error('Image file is too large. Please upload a smaller image.');
+  }
+
+  console.log('[validateImageFileForUpload] Image file validated for upload:', {
+    fileName: originalName,
+    mimetype,
+    size
+  });
+};
+
 /**
  * Upload a single image file to ImageKit
  * @param {Buffer|Object} file - File buffer (from multer memory storage) or file object
@@ -14,6 +117,13 @@ import imagekit from '../config/imagekit.js';
  */
 export const uploadImageToImageKit = async (file, fileName, folder = '/products', options = {}) => {
   try {
+    console.log('[uploadImageToImageKit] Preparing to upload image to ImageKit:', {
+      incomingFileName: fileName,
+      folder,
+      mimetype: file && file.mimetype,
+      size: file && (typeof file.size === 'number' ? file.size : file.buffer && file.buffer.length)
+    });
+
     let fileBuffer;
     let originalFileName = fileName;
 
@@ -21,11 +131,11 @@ export const uploadImageToImageKit = async (file, fileName, folder = '/products'
     if (Buffer.isBuffer(file)) {
       // Direct buffer
       fileBuffer = file;
-    } else if (file.buffer) {
+    } else if (file && file.buffer) {
       // Multer memory storage buffer
       fileBuffer = file.buffer;
       originalFileName = file.originalname || fileName;
-    } else if (file.path) {
+    } else if (file && file.path) {
       // Multer disk storage - read file from path
       const fs = await import('fs');
       fileBuffer = fs.readFileSync(file.path);
@@ -33,6 +143,9 @@ export const uploadImageToImageKit = async (file, fileName, folder = '/products'
     } else {
       throw new Error('Invalid file format. Expected buffer or multer file object.');
     }
+
+    // Validate that this looks like a real image before upload
+    validateImageFileForUpload(file, originalFileName);
 
     // Prepare upload parameters
     const uploadParams = {
@@ -42,10 +155,33 @@ export const uploadImageToImageKit = async (file, fileName, folder = '/products'
       ...options // Allow overriding any ImageKit parameters
     };
 
-    // Upload to ImageKit
-    const result = await imagekit.upload(uploadParams);
+    // Upload to ImageKit with retries for transient failures
+    let result;
+    let lastError;
+    for (let attempt = 1; attempt <= UPLOAD_MAX_RETRIES; attempt++) {
+      try {
+        result = await imagekit.upload(uploadParams);
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err;
+        if (attempt < UPLOAD_MAX_RETRIES && isRetryableUploadError(err)) {
+          const delay = UPLOAD_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+          console.warn(`[uploadImageToImageKit] Attempt ${attempt}/${UPLOAD_MAX_RETRIES} failed (retryable), retrying in ${delay}ms:`, err.message);
+          await new Promise((r) => setTimeout(r, delay));
+        } else {
+          throw err;
+        }
+      }
+    }
+    if (lastError) throw lastError;
 
-    return {
+    if (!result || !result.url || !result.fileId) {
+      console.error('[uploadImageToImageKit] ImageKit upload returned invalid response:', result);
+      throw new Error('ImageKit upload did not return a valid URL or fileId.');
+    }
+
+    const responsePayload = {
       success: true,
       url: result.url, // Public URL from ImageKit
       fileId: result.fileId, // ImageKit file ID (needed for deletion)
@@ -56,8 +192,20 @@ export const uploadImageToImageKit = async (file, fileName, folder = '/products'
       height: result.height,
       fileType: result.fileType
     };
+
+    console.log('[uploadImageToImageKit] ✓ Image uploaded to ImageKit:', {
+      fileName: responsePayload.name,
+      url: responsePayload.url,
+      fileId: responsePayload.fileId,
+      size: responsePayload.size
+    });
+
+    return responsePayload;
   } catch (error) {
-    console.error('ImageKit upload error:', error);
+    console.error('[uploadImageToImageKit] ImageKit upload error:', error);
+    if (error && error.stack) {
+      console.error('[uploadImageToImageKit] Error stack:', error.stack);
+    }
     throw new Error(`Failed to upload image to ImageKit: ${error.message}`);
   }
 };
@@ -72,6 +220,17 @@ export const uploadImageToImageKit = async (file, fileName, folder = '/products'
  */
 export const uploadMultipleImagesToImageKit = async (files, baseFileName, folder = '/products', options = {}) => {
   try {
+    if (!Array.isArray(files) || files.length === 0) {
+      console.error('[uploadMultipleImagesToImageKit] No files provided for upload.');
+      throw new Error('No image files provided for upload.');
+    }
+
+    console.log('[uploadMultipleImagesToImageKit] Starting multi-image upload to ImageKit:', {
+      count: files.length,
+      baseFileName,
+      folder
+    });
+
     const uploadPromises = files.map((file, index) => {
       // Generate unique filename for each image
       const ext = file.originalname ? file.originalname.split('.').pop() : 'jpg';
@@ -80,9 +239,35 @@ export const uploadMultipleImagesToImageKit = async (files, baseFileName, folder
     });
 
     const results = await Promise.all(uploadPromises);
+
+    // Sanity check: ensure every requested file produced a valid ImageKit URL
+    const invalidResult = results.find(result => {
+      return !result || !result.success || !result.url || !result.fileId;
+    });
+
+    if (invalidResult) {
+      console.error('[uploadMultipleImagesToImageKit] One or more images did not upload correctly to ImageKit:', {
+        invalidResult
+      });
+      throw new Error('One or more images failed to upload correctly to ImageKit.');
+    }
+
+    if (results.length !== files.length) {
+      console.error('[uploadMultipleImagesToImageKit] URL count mismatch: expected', files.length, 'URLs, got', results.length);
+      throw new Error('Not all images reached ImageKit. Please try again.');
+    }
+
+    console.log('[uploadMultipleImagesToImageKit] ✓ All', files.length, 'images reached ImageKit:', {
+      requestedCount: files.length,
+      uploadedCount: results.length
+    });
+
     return results;
   } catch (error) {
-    console.error('Error uploading multiple images to ImageKit:', error);
+    console.error('[uploadMultipleImagesToImageKit] Error uploading multiple images to ImageKit:', error);
+    if (error && error.stack) {
+      console.error('[uploadMultipleImagesToImageKit] Error stack:', error.stack);
+    }
     throw error;
   }
 };

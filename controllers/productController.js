@@ -268,12 +268,20 @@ export const createProduct = async (req, res) => {
             imageKitFileIds[result.url] = result.fileId;
           });
           
+          // Only proceed when every file received has a confirmed ImageKit URL
+          if (photoUrls.length !== photoFiles.length) {
+            console.error('[createProduct] Image count mismatch: received', photoFiles.length, 'files, got', photoUrls.length, 'ImageKit URLs');
+            return res.status(500).json({
+              error: 'Not all images reached ImageKit. Product was not saved. Please try again.'
+            });
+          }
+          
           // Set the first photo as the main photo
           if (photoUrls.length > 0) {
             photoUrl = photoUrls[0];
           }
           
-          console.log('[createProduct] Uploaded', photoUrls.length, 'images to ImageKit');
+          console.log('[createProduct] All', photoUrls.length, 'images reached ImageKit; proceeding to save product');
         } else if (singlePhoto) {
           // Single photo - upload to ImageKit
           const folder = `/products/${trimmedProductId}`;
@@ -286,11 +294,17 @@ export const createProduct = async (req, res) => {
             { tags: [`product-${trimmedProductId}`, category] }
           );
           
+          if (!uploadResult.url || !uploadResult.fileId) {
+            console.error('[createProduct] Single image upload did not return URL/fileId:', uploadResult);
+            return res.status(500).json({
+              error: 'Image did not reach ImageKit. Product was not saved. Please try again.'
+            });
+          }
           photoUrl = uploadResult.url;
           photoUrls = [photoUrl];
           imageKitFileIds[photoUrl] = uploadResult.fileId;
           
-          console.log('[createProduct] Uploaded single image to ImageKit:', photoUrl);
+          console.log('[createProduct] Single image reached ImageKit; proceeding to save product:', photoUrl);
         }
       } catch (uploadError) {
         console.error('[createProduct] Error uploading images to ImageKit:', uploadError);
