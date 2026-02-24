@@ -120,6 +120,25 @@ const deleteImageFiles = async (imageUrls) => {
   return { successCount, failCount, results };
 };
 
+// Helper to normalize, de-duplicate, and sanitize photo URL arrays
+const cleanPhotoArray = (photosInput) => {
+  const arr = Array.isArray(photosInput) ? photosInput : (photosInput ? [photosInput] : []);
+  const seen = new Set();
+  const result = [];
+
+  for (const raw of arr) {
+    if (!raw || typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (!seen.has(trimmed)) {
+      seen.add(trimmed);
+      result.push(trimmed);
+    }
+  }
+
+  return result;
+};
+
 // Create a new product
 export const createProduct = async (req, res) => {
   try {
@@ -359,6 +378,15 @@ export const createProduct = async (req, res) => {
     
     console.log('[createProduct] Final photo URLs - photo:', photoUrl, 'photos:', photoUrls);
 
+    // Sanitize and de-duplicate photo URLs before saving
+    const cleanedPhotoUrls = cleanPhotoArray(photoUrls);
+    let mainPhotoCandidate = photoUrl || req.body.photo || null;
+    if (!mainPhotoCandidate && cleanedPhotoUrls.length > 0) {
+      mainPhotoCandidate = cleanedPhotoUrls[0];
+    }
+    const cleanedMainArray = cleanPhotoArray(mainPhotoCandidate ? [mainPhotoCandidate] : []);
+    const cleanedMainPhoto = cleanedMainArray.length > 0 ? cleanedMainArray[0] : null;
+
     // Create product data object
     const productData = {
       productId: trimmedProductId, // Save exactly as entered (trimmed)
@@ -367,8 +395,8 @@ export const createProduct = async (req, res) => {
       unit: unit || 'piece',
       description,
       category,
-      photo: photoUrl || req.body.photo || null,
-      photos: photoUrls.length > 0 ? photoUrls : (req.body.photos ? (Array.isArray(req.body.photos) ? req.body.photos : JSON.parse(req.body.photos)) : []),
+      photo: cleanedMainPhoto,
+      photos: cleanedPhotoUrls,
       seller,
       sellerName,
       sellerEmail,
@@ -631,6 +659,12 @@ export const updateProduct = async (req, res) => {
       }
     }
 
+    console.log('[updateProduct] Incoming image-related fields:', {
+      existingPhotosRaw: req.body.existingPhotos,
+      photosRaw: req.body.photos,
+      photoRaw: req.body.photo
+    });
+
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (req.body.brand !== undefined) updateData.brand = req.body.brand;
@@ -657,7 +691,7 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    let existingPhotos = existingProduct?.photos || [];
+    let existingPhotos = cleanPhotoArray(existingProduct?.photos || []);
     const existingPhoto = existingProduct?.photo;
     const productId = existingProduct.productId;
     
@@ -687,9 +721,11 @@ export const updateProduct = async (req, res) => {
       let photosToKeep = [];
       if (existingPhotosToKeep !== undefined) {
         // Parse existingPhotos - could be array or JSON string
-        photosToKeep = Array.isArray(existingPhotosToKeep) 
-          ? existingPhotosToKeep 
-          : (typeof existingPhotosToKeep === 'string' ? JSON.parse(existingPhotosToKeep || '[]') : []);
+        photosToKeep = cleanPhotoArray(
+          Array.isArray(existingPhotosToKeep) 
+            ? existingPhotosToKeep 
+            : (typeof existingPhotosToKeep === 'string' ? JSON.parse(existingPhotosToKeep || '[]') : [])
+        );
       }
       
       try {
@@ -705,10 +741,10 @@ export const updateProduct = async (req, res) => {
             { tags: [`product-${productId}`, category || existingProduct.category] }
           );
           
-          const newPhotoUrls = uploadResults.map(result => result.url);
+          const newPhotoUrls = cleanPhotoArray(uploadResults.map(result => result.url));
           
-          // Combine new photos with existing photos to keep
-          allPhotos = [...photosToKeep, ...newPhotoUrls];
+          // Combine new photos with existing photos to keep (no blanks, no duplicates)
+          allPhotos = cleanPhotoArray([...photosToKeep, ...newPhotoUrls]);
           
           // Find images to delete: existing photos NOT in the keep list
           // Normalize URLs for comparison (remove query params, trailing slashes)
@@ -746,9 +782,10 @@ export const updateProduct = async (req, res) => {
             });
           }
           
-          updateData.photos = allPhotos;
-          if (allPhotos.length > 0) {
-            updateData.photo = allPhotos[0];
+          const cleanedAllPhotos = cleanPhotoArray(allPhotos);
+          updateData.photos = cleanedAllPhotos;
+          if (cleanedAllPhotos.length > 0) {
+            updateData.photo = cleanedAllPhotos[0];
           }
           
           console.log('[updateProduct] Uploaded', newPhotoUrls.length, 'new images to ImageKit, keeping', photosToKeep.length, 'existing photos');
@@ -766,8 +803,8 @@ export const updateProduct = async (req, res) => {
           
           const newPhotoUrl = uploadResult.url;
           
-          // Combine new photo with existing photos to keep
-          allPhotos = [...photosToKeep, newPhotoUrl];
+          // Combine new photo with existing photos to keep (no blanks, no duplicates)
+          allPhotos = cleanPhotoArray([...photosToKeep, newPhotoUrl]);
           
           // Find images to delete: existing photos NOT in the keep list
           // Normalize URLs for comparison (remove query params, trailing slashes)
@@ -805,8 +842,9 @@ export const updateProduct = async (req, res) => {
             });
           }
           
-          updateData.photo = allPhotos[0];
-          updateData.photos = allPhotos;
+          const cleanedAllPhotos = cleanPhotoArray(allPhotos);
+          updateData.photo = cleanedAllPhotos[0] || null;
+          updateData.photos = cleanedAllPhotos;
           
           console.log('[updateProduct] Uploaded single new image to ImageKit, keeping', photosToKeep.length, 'existing photos');
         }
@@ -825,9 +863,11 @@ export const updateProduct = async (req, res) => {
       if (existingPhotosToKeep !== undefined) {
         // Frontend explicitly sent which photos to keep
         // Convert to array if it's a string
-        const photosToKeep = Array.isArray(existingPhotosToKeep) 
-          ? existingPhotosToKeep 
-          : (typeof existingPhotosToKeep === 'string' ? JSON.parse(existingPhotosToKeep || '[]') : []);
+        const photosToKeep = cleanPhotoArray(
+          Array.isArray(existingPhotosToKeep) 
+            ? existingPhotosToKeep 
+            : (typeof existingPhotosToKeep === 'string' ? JSON.parse(existingPhotosToKeep || '[]') : [])
+        );
         
         // Find photos that were removed (existing photos not in the keep list)
         // Normalize URLs for comparison (remove query params, trailing slashes)
@@ -865,9 +905,10 @@ export const updateProduct = async (req, res) => {
           });
         }
         
-        // Update product with photos to keep
-        updateData.photos = photosToKeep;
-        updateData.photo = photosToKeep.length > 0 ? photosToKeep[0] : null;
+        // Update product with photos to keep (sanitized, de-duplicated)
+        const cleanedKeep = cleanPhotoArray(photosToKeep);
+        updateData.photos = cleanedKeep;
+        updateData.photo = cleanedKeep.length > 0 ? cleanedKeep[0] : null;
       } else if (photo !== undefined && photo !== null && photo !== '') {
         // Photo URL provided directly - replace existing
         if (existingPhoto && isImageKitUrl(existingPhoto) && existingPhoto !== photo) {
@@ -888,7 +929,9 @@ export const updateProduct = async (req, res) => {
         updateData.photos = Array.isArray(req.body.photos) ? req.body.photos : [photo];
       } else if (req.body.photos !== undefined) {
         // Photos array provided directly
-        const newPhotos = Array.isArray(req.body.photos) ? req.body.photos : JSON.parse(req.body.photos || '[]');
+        const newPhotos = cleanPhotoArray(
+          Array.isArray(req.body.photos) ? req.body.photos : JSON.parse(req.body.photos || '[]')
+        );
         // Find photos to delete (ones not in new list)
         const photosToKeep = new Set(newPhotos);
         if (existingPhoto && isImageKitUrl(existingPhoto) && !photosToKeep.has(existingPhoto)) {
@@ -899,16 +942,19 @@ export const updateProduct = async (req, res) => {
             imagesToDelete.push(existing);
           }
         });
-        updateData.photos = newPhotos;
-        updateData.photo = newPhotos.length > 0 ? newPhotos[0] : null;
+        const cleanedNew = cleanPhotoArray(newPhotos);
+        updateData.photos = cleanedNew;
+        updateData.photo = cleanedNew.length > 0 ? cleanedNew[0] : null;
       } else {
         // Keep existing photos if no changes
         if (existingPhotos && existingPhotos.length > 0) {
-          updateData.photos = existingPhotos;
-          updateData.photo = existingPhotos[0];
+          const cleanedExisting = cleanPhotoArray(existingPhotos);
+          updateData.photos = cleanedExisting;
+          updateData.photo = cleanedExisting[0] || null;
         } else if (existingPhoto) {
-          updateData.photo = existingPhoto;
-          updateData.photos = [existingPhoto];
+          const cleanedExistingMain = cleanPhotoArray([existingPhoto]);
+          updateData.photo = cleanedExistingMain[0] || null;
+          updateData.photos = cleanedExistingMain;
         }
       }
     }
@@ -951,6 +997,34 @@ export const updateProduct = async (req, res) => {
       } else {
         console.log('[updateProduct] No images to delete from ImageKit');
       }
+
+      // Final safety: ensure product.photos and product.photo are fully sanitized before returning
+      const cleanedFinalPhotos = cleanPhotoArray(product.photos || []);
+      const cleanedFinalMainArr = cleanPhotoArray(
+        product.photo ? [product.photo] : (cleanedFinalPhotos.length > 0 ? [cleanedFinalPhotos[0]] : [])
+      );
+      const finalMainPhoto = cleanedFinalMainArr.length > 0 ? cleanedFinalMainArr[0] : null;
+
+      if (
+        JSON.stringify(cleanedFinalPhotos) !== JSON.stringify(product.photos || []) ||
+        finalMainPhoto !== product.photo
+      ) {
+        console.log('[updateProduct] Normalizing product.photos before final save:', {
+          before: product.photos,
+          after: cleanedFinalPhotos,
+          beforeMain: product.photo,
+          afterMain: finalMainPhoto
+        });
+        product.photos = cleanedFinalPhotos;
+        product.photo = finalMainPhoto;
+        await product.save();
+      }
+
+      console.log('[updateProduct] Final saved image data:', {
+        photo: product.photo,
+        photos: product.photos,
+        photosCount: product.photos ? product.photos.length : 0
+      });
 
       res.json({
         message: 'Product updated successfully',
