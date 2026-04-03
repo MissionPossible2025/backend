@@ -2,11 +2,14 @@
 import Order from '../models/orderModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
+import WalletConfig from '../models/walletConfigModel.js';
+import Customer from '../models/customerModel.js';
+import WalletTransaction from '../models/walletTransactionModel.js';
 
 // Create new order
 export const createOrder = async (req, res) => {
   try {
-    const { customer, customerDetails, items, totalAmount, notes } = req.body;
+    const { customer, customerDetails, items, totalAmount, notes, walletUsed } = req.body;
 
     console.log('Order creation request received:', {
       customer: customer ? 'present' : 'missing',
@@ -82,14 +85,110 @@ export const createOrder = async (req, res) => {
     
     console.log('Processed items count:', processedItems.length);
 
-    // Create order
+    // Clamp walletUsed (if provided) to non-negative and not above totalAmount
+    let walletToUse = 0;
+    if (walletUsed != null) {
+      walletToUse = Math.max(0, Number(walletUsed) || 0);
+      walletToUse = Math.min(walletToUse, Number(totalAmount) || 0);
+    }
+
+    // Fetch customer to read wallet balance (supports both User and Customer collections)
+    let customerRecord = await User.findById(customer);
+    let customerSource = 'user';
+    if (!customerRecord) {
+      customerRecord = await Customer.findById(customer);
+      customerSource = 'customer';
+    }
+    if (!customerRecord) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Ensure customer has enough wallet balance; clamp to available
+    walletToUse = Math.min(walletToUse, Number(customerRecord.walletBalance || 0));
+
+    // Net payable amount after wallet deduction (for information purposes)
+    const netPayable = (Number(totalAmount) || 0) - walletToUse;
+
+    // Determine seller for cashback config.
+    // For now, use the first item's seller (assumes single-seller cart).
+    const primarySellerId = processedItems[0]?.seller;
+
+    let cashbackAmount = 0;
+    if (primarySellerId) {
+      const walletConfig = await WalletConfig.findOne({ sellerId: primarySellerId }).lean();
+      const slabs = walletConfig?.slabs || [];
+
+      if (slabs.length > 0) {
+        const orderValueForCashback = Number(totalAmount) || 0;
+        const matching = slabs.find(
+          (slab) =>
+            orderValueForCashback >= slab.minAmount &&
+            orderValueForCashback < slab.maxAmount
+        );
+
+        if (matching && matching.percentage > 0) {
+          cashbackAmount = (orderValueForCashback * matching.percentage) / 100;
+          cashbackAmount = Number(cashbackAmount.toFixed(2));
+        }
+      }
+    }
+
+    // Create order document first so we can reference orderId in wallet history.
     const order = new Order({
       customer,
       customerDetails,
       items: processedItems,
       totalAmount,
-      notes: notes || ''
+      notes: notes || '',
+      walletUsed: walletToUse,
+      cashbackAmount
     });
+
+    // Apply wallet usage and cashback to customer's wallet balance
+    if (walletToUse > 0 || cashbackAmount > 0) {
+      const initialBalance = Number(customerRecord.walletBalance || 0);
+      const newBalance =
+        initialBalance - walletToUse + cashbackAmount;
+      customerRecord.walletBalance = Math.max(0, Number(newBalance.toFixed(2)));
+      await customerRecord.save();
+
+      // Record transactions independently. If both exist in same order:
+      // debit first, then credit.
+      if (walletToUse > 0) {
+        const balanceAfterDebit = Math.max(
+          0,
+          Number((initialBalance - walletToUse).toFixed(2))
+        );
+        await WalletTransaction.create({
+          customerId: customerRecord._id,
+          customerSource,
+          orderId: order.orderId,
+          transactionType: 'debit',
+          amount: Number(walletToUse.toFixed(2)),
+          updatedBalance: balanceAfterDebit,
+          note: 'Wallet used in order'
+        });
+      }
+
+      if (cashbackAmount > 0) {
+        const balanceAfterDebit = Math.max(
+          0,
+          Number((initialBalance - walletToUse).toFixed(2))
+        );
+        const balanceAfterCredit = Number(
+          (balanceAfterDebit + cashbackAmount).toFixed(2)
+        );
+        await WalletTransaction.create({
+          customerId: customerRecord._id,
+          customerSource,
+          orderId: order.orderId,
+          transactionType: 'credit',
+          amount: Number(cashbackAmount.toFixed(2)),
+          updatedBalance: balanceAfterCredit,
+          note: 'Cashback earned'
+        });
+      }
+    }
 
     await order.save();
     await order.populate('items.product');
@@ -97,7 +196,14 @@ export const createOrder = async (req, res) => {
 
     res.status(201).json({
       message: 'Order created successfully',
-      order: order
+      order,
+      meta: {
+        walletUsed: walletToUse,
+        cashbackAmount,
+        netPayable,
+        walletBalance: customerRecord.walletBalance,
+        customerSource
+      }
     });
   } catch (error) {
     console.error('Error creating order:', error);

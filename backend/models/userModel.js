@@ -49,6 +49,11 @@ const userSchema = new mongoose.Schema({
   profileComplete: {
     type: Boolean,
     default: false
+  },
+  walletBalance: {
+    type: Number,
+    default: 0,
+    min: 0
   }
 }, { timestamps: true });
 

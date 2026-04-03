@@ -9,6 +9,7 @@ import CartPage from './pages/CartPage.jsx'
 import BuyNowPage from './pages/BuyNowPage.jsx'
 import OrderSummary from './pages/OrderSummary.jsx'
 import OrderSuccess from './pages/OrderSuccess.jsx'
+import WalletPage from './pages/WalletPage.jsx'
 import OrdersPage from './pages/OrdersPage.jsx'
 import OrderDetails from './pages/OrderDetails.jsx'
 import { setNavigationRef, setLocationRef } from './hooks/useBackButton'
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/order/:id" element={<OrderDetails />} />
+        <Route path="/wallet" element={<WalletPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

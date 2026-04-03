@@ -7,6 +7,7 @@ import EditItem from "./pages/EditItem";
 import ManageOrders from "./pages/ManageOrders";
 import CustomerManagement from "./pages/CustomerManagement";
 import OrderDetails from "./pages/OrderDetails";
+import WalletManagementPage from "./pages/WalletManagementPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/edit-item/:id" element={<EditItem />} />
           <Route path="/manage-orders" element={<ManageOrders user={user} />} />
           <Route path="/customer-management" element={<CustomerManagement user={user} />} />
+          <Route path="/wallet-management" element={<WalletManagementPage user={user} />} />
           <Route path="/order/:id" element={<OrderDetails user={user} />} />
         </Routes>
       ) : (

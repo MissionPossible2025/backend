@@ -141,6 +141,16 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  walletUsed: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  cashbackAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   acceptedAt: {
     type: Date
   },

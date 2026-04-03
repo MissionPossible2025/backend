@@ -60,6 +60,11 @@ export default function Sidebar({ isOpen, onClose }) {
     onClose()
   }
 
+  const handleWalletClick = () => {
+    navigate('/wallet')
+    onClose()
+  }
+
   return (
     <>
       {/* Backdrop */}
@@ -197,6 +202,35 @@ export default function Sidebar({ isOpen, onClose }) {
                 )}
               </div>
             )}
+          </button>
+
+          <button
+            onClick={handleWalletClick}
+            style={{
+              padding: '1rem 1.5rem',
+              borderRadius: '12px',
+              border: '1px solid #cbd5e1',
+              background: 'linear-gradient(135deg,#ffffff,#f8fafc)',
+              color: '#0f172a',
+              fontWeight: 600,
+              cursor: 'pointer',
+              textAlign: 'left',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateX(4px)'
+              e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateX(0)'
+              e.target.style.boxShadow = 'none'
+            }}
+          >
+            <span>Wallet</span>
           </button>
 
           <button

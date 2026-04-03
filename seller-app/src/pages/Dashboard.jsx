@@ -8,10 +8,10 @@ export default function Dashboard({ user }) {
   
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'products'
   const [zoomImageUrl, setZoomImageUrl] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [unreadOrderCount, setUnreadOrderCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'products'
   const [arrangeMode, setArrangeMode] = useState({}); // per-category arrange mode
   const [dragState, setDragState] = useState({ category: null, productId: null });
   const [categoryBuffers, setCategoryBuffers] = useState({}); // local per-category order while arranging
@@ -400,6 +400,24 @@ export default function Dashboard({ user }) {
             >
               Customer Management
             </button>
+            <button 
+              onClick={() => navigate("/wallet-management")}
+              style={{
+                padding: "1rem 2rem",
+                borderRadius: "8px",
+                fontSize: "1.1rem",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                backgroundColor: "#0f766e",
+                color: "white",
+                border: "none"
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = "#115e59"}
+              onMouseOut={(e) => e.target.style.backgroundColor = "#0f766e"}
+            >
+              Wallet Management
+            </button>
           </div>
         )}
 
@@ -711,6 +729,7 @@ export default function Dashboard({ user }) {
             )}
           </div>
         )}
+
         {/* (Edit product selection modal removed) */}
         
         {/* Zoom Modal */}

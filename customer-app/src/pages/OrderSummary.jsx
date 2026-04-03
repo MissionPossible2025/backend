@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { getCurrentUser, getUserId } from '../utils/userUtils'
 import resolveImageUrl from '../utils/imageUtils'
 import { dispatchBackButton } from '../hooks/useBackButton'
+import OrderSuccessPopup from '../components/OrderSuccessPopup.jsx'
 
 export default function OrderSummary() {
   const location = useLocation()
@@ -13,6 +14,16 @@ export default function OrderSummary() {
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [walletBalance, setWalletBalance] = useState(0)
+  const [useWallet, setUseWallet] = useState(false)
+  const [walletToUse, setWalletToUse] = useState(0)
+  const [successPopup, setSuccessPopup] = useState({
+    isOpen: false,
+    orderId: null,
+    walletUsed: 0,
+    walletCredited: 0,
+    walletBalance: null
+  })
 
   useEffect(() => {
     const data = location.state?.orderData || JSON.parse(localStorage.getItem('currentOrder') || 'null')
@@ -60,6 +71,27 @@ export default function OrderSummary() {
     setLoading(false)
   }, [location.state, navigate])
 
+  // Fetch wallet balance once when order data is ready
+  useEffect(() => {
+    const fetchWallet = async () => {
+      try {
+        const user = getCurrentUser()
+        const userId = getUserId(user)
+        if (!userId) return
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/wallet/balance/${userId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        const balance = Number(data.walletBalance || 0)
+        setWalletBalance(balance)
+      } catch (err) {
+        console.warn('Failed to fetch wallet balance', err)
+      }
+    }
+    if (orderData) {
+      fetchWallet()
+    }
+  }, [orderData])
+
   const calculateTotal = (items) => {
     return items.reduce((sum, item) => {
       const unit = item.discountedPrice && item.discountedPrice < item.price ? item.discountedPrice : item.price
@@ -83,6 +115,12 @@ export default function OrderSummary() {
       const taxAmount = itemTotal * taxPercentage / 100
       return sum + itemTotal + taxAmount
     }, 0)
+  }
+
+  const calculateGrandTotal = (items) => {
+    const gross = calculateTotalWithTax(items)
+    const applied = useWallet ? walletToUse : 0
+    return Math.max(0, gross - applied)
   }
 
   const updateUserField = (fieldPath, value) => {
@@ -131,6 +169,11 @@ export default function OrderSummary() {
       }
       
       // Create order data
+      const grossTotal = calculateTotalWithTax(cartItems)
+      let appliedWallet = 0
+      if (useWallet && walletBalance > 0) {
+        appliedWallet = Math.max(0, Math.min(walletBalance, grossTotal))
+      }
       const orderDataToSend = {
         customer: userId,
         customerDetails: {
@@ -147,7 +190,8 @@ export default function OrderSummary() {
           // Do not send seller; backend derives from product
           variant: item.variant || null
         })),
-        totalAmount: calculateTotalWithTax(cartItems),
+        totalAmount: grossTotal,
+        walletUsed: appliedWallet,
         notes: 'Order placed directly - no payment required'
       }
       
@@ -167,6 +211,8 @@ export default function OrderSummary() {
       if (response.ok) {
         const result = await response.json()
         console.log('Order created successfully:', result)
+        const credited = Number(result.meta?.cashbackAmount || 0)
+        const newWallet = Number(result.meta?.walletBalance ?? walletBalance)
         
         // Clear cart after successful order
         try {
@@ -185,14 +231,20 @@ export default function OrderSummary() {
           console.warn('Failed to clear cart:', cartError)
         }
         
-        // Show success message box
+        // Update wallet balance in local state if backend returned it
+        if (!Number.isNaN(newWallet)) {
+          setWalletBalance(newWallet)
+        }
+
+        // Show in-app success popup (instead of alert)
         const orderId = result.order?.orderId || result.orderId || 'PENDING'
-        alert(`✅ Your order has been placed successfully!\n\nOrder ID: ${orderId}\n\nThank you for your purchase!`)
-        
-        // Redirect to products page after showing alert
-        setTimeout(() => {
-          navigate('/products')
-        }, 500)
+        setSuccessPopup({
+          isOpen: true,
+          orderId,
+          walletUsed: Number(appliedWallet || 0),
+          walletCredited: Number(credited || 0),
+          walletBalance: Number.isNaN(newWallet) ? walletBalance : newWallet
+        })
       } else {
         const error = await response.json()
         console.error('Order creation failed:', error)
@@ -348,6 +400,19 @@ export default function OrderSummary() {
 
   return (
     <>
+      <OrderSuccessPopup
+        isOpen={successPopup.isOpen}
+        orderId={successPopup.orderId}
+        walletUsed={successPopup.walletUsed}
+        walletCredited={successPopup.walletCredited}
+        walletBalance={successPopup.walletBalance}
+        onClose={() => {
+          setSuccessPopup((prev) => ({ ...prev, isOpen: false }))
+          setUseWallet(false)
+          setWalletToUse(0)
+          navigate('/products')
+        }}
+      />
       <style>{`
         @media (max-width: 768px) {
           .order-summary-container {
@@ -725,13 +790,112 @@ export default function OrderSummary() {
                     ₹{calculateTax(cartItems).toFixed(2)}
                   </span>
                 </div>
+
+                {/* Wallet Section */}
+                <div
+                  style={{
+                    marginTop: '0.75rem',
+                    padding: '0.75rem 0.75rem 0.5rem 0.75rem',
+                    borderRadius: 8,
+                    background: '#ecfdf5',
+                    border: '1px solid #bbf7d0',
+                    display: 'grid',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          fontSize: '0.95rem',
+                          fontWeight: 600,
+                          color: '#166534'
+                        }}
+                      >
+                        Wallet
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.8rem',
+                          color: '#166534'
+                        }}
+                      >
+                        Available: ₹{walletBalance.toFixed(2)}
+                      </div>
+                    </div>
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        fontSize: '0.85rem',
+                        color: '#166534',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={useWallet}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setUseWallet(checked)
+                          if (checked) {
+                            const gross = calculateTotalWithTax(cartItems)
+                            const maxUsable = Math.max(
+                              0,
+                              Math.min(walletBalance, gross)
+                            )
+                            setWalletToUse(maxUsable)
+                          } else {
+                            setWalletToUse(0)
+                          }
+                        }}
+                      />
+                      Use wallet balance
+                    </label>
+                  </div>
+
+                  {useWallet && walletBalance > 0 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.9rem',
+                          color: '#166534'
+                        }}
+                      >
+                        Wallet applied
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '1rem',
+                          fontWeight: 600,
+                          color: '#166534'
+                        }}
+                      >
+                        − ₹{walletToUse.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 
                 <hr style={{ border: 'none', borderTop: '2px solid #e2e8f0', margin: '0.75rem 0' }} />
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0f172a' }}>Total Amount</span>
+                  <span style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0f172a' }}>Total Payable</span>
                   <span style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0f172a' }}>
-                    ₹{calculateTotalWithTax(cartItems).toFixed(2)}
+                    ₹{calculateGrandTotal(cartItems).toFixed(2)}
                   </span>
                 </div>
               </div>
