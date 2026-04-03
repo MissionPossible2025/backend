@@ -1,0 +1,91 @@
+/* Global responsive and safe-area friendly styling for mobile webview */
+:root {
+  --safe-top: max(env(safe-area-inset-top), 0px);
+  --safe-bottom: max(env(safe-area-inset-bottom), 0px);
+  --safe-left: max(env(safe-area-inset-left), 0px);
+  --safe-right: max(env(safe-area-inset-right), 0px);
+}
+
+/* Android fallback: env(safe-area-inset-top) often returns 0 in WebView */
+@media (max-width: 768px) {
+  :root {
+    --safe-top: max(env(safe-area-inset-top), 24px);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  -webkit-text-size-adjust: 100%;
+  padding: 0 var(--safe-right) 0 var(--safe-left);
+  overflow-x: hidden;
+}
+
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* App container: padding-top keeps all page content below status bar (Order Details approach) */
+#root {
+  min-height: 100dvh;
+  padding-top: var(--safe-top);
+}
+
+/* Fixed status bar background: prevents scroll content from showing through during overscroll (Dashboard-style).
+   Matches html/body background so status bar area never shows scrolling content. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background-color: #f8fafc;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Utility helpers for viewport sizing without cutting under system UI */
+.vh-100 {
+  min-height: 100dvh;
+}
+
+.scroll-area {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+
+
+
+

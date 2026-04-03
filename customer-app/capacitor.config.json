@@ -1,0 +1,13 @@
+{
+  "appId": "com.dreamsynccreations.dailynk",
+  "appName": "DaiLynk",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlay": false
+    }
+  }
+}
