@@ -189,47 +189,129 @@ export default function WalletPage() {
               No wallet transactions yet.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                overflowX: 'hidden',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                background: '#fafafa'
+              }}
+            >
+              {/*
+                Strict 20% columns: gap 0 + vertical rules so spacing is visually even.
+                Content centered in each band (avoids “huge gap” from right-aligned ₹ in a wide cell).
+              */}
+              <div
                 style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  minWidth: 620
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                  columnGap: 0,
+                  borderBottom: '1px solid #e2e8f0',
+                  background: '#f1f5f9',
+                  fontSize: '0.62rem',
+                  fontWeight: 700,
+                  color: '#64748b',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                  lineHeight: 1.2
                 }}
               >
-                <thead>
-                  <tr style={{ background: '#f8fafc' }}>
-                    <th style={thStyle}>Order ID</th>
-                    <th style={thStyle}>Transaction</th>
-                    <th style={thStyle}>Amount</th>
-                    <th style={thStyle}>Updated Balance</th>
-                    <th style={thStyle}>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((tx) => {
-                    const isCredit = tx.transactionType === 'credit'
-                    const signed = `${isCredit ? '+' : '-'}₹${Number(tx.amount || 0).toFixed(2)}`
-                    return (
-                      <tr key={tx._id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                        <td style={tdStyle}>{tx.orderId ? `#${tx.orderId}` : '-'}</td>
-                        <td style={{ ...tdStyle, color: isCredit ? '#059669' : '#dc2626', fontWeight: 600 }}>
-                          {isCredit ? 'Cashback Earned' : 'Wallet Used'}
-                        </td>
-                        <td style={{ ...tdStyle, color: isCredit ? '#059669' : '#dc2626', fontWeight: 700 }}>
-                          {signed}
-                        </td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>
-                          ₹{Number(tx.updatedBalance || 0).toFixed(2)}
-                        </td>
-                        <td style={tdStyle}>
-                          {new Date(tx.createdAt).toLocaleString()}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                <div style={{ ...gridHeadCell, borderRight: '1px solid #e2e8f0' }}>Order ID</div>
+                <div style={{ ...gridHeadCell, borderRight: '1px solid #e2e8f0' }}>Type</div>
+                <div style={{ ...gridHeadCell, borderRight: '1px solid #e2e8f0' }}>Amount</div>
+                <div style={{ ...gridHeadCell, borderRight: '1px solid #e2e8f0' }}>Balance</div>
+                <div style={gridHeadCell}>Date</div>
+              </div>
+              <ul
+                style={{
+                  listStyle: 'none',
+                  margin: 0,
+                  padding: 0
+                }}
+              >
+                {transactions.map((tx) => {
+                  const isCredit = tx.transactionType === 'credit'
+                  const signed = `${isCredit ? '+' : '-'}₹${Number(tx.amount || 0).toFixed(2)}`
+                  const when = new Date(tx.createdAt)
+                  const dateStr = when.toLocaleDateString(undefined, {
+                    day: 'numeric',
+                    month: 'short',
+                    year: '2-digit'
+                  })
+                  const timeStr = when.toLocaleTimeString(undefined, {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                  return (
+                    <li
+                      key={tx._id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                        columnGap: 0,
+                        alignItems: 'stretch',
+                        borderBottom: '1px solid #e2e8f0',
+                        fontSize: '0.7rem',
+                        color: '#1e293b',
+                        lineHeight: 1.25
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...gridBodyCell,
+                          borderRight: '1px solid #e2e8f0',
+                          fontFamily: 'ui-monospace, monospace',
+                          fontSize: '0.65rem',
+                          color: '#475569'
+                        }}
+                        title={tx.orderId || ''}
+                      >
+                        {tx.orderId || '—'}
+                      </div>
+                      <div
+                        style={{
+                          ...gridBodyCell,
+                          borderRight: '1px solid #e2e8f0',
+                          fontWeight: 600,
+                          color: isCredit ? '#059669' : '#dc2626'
+                        }}
+                      >
+                        {isCredit ? 'Cashback' : 'Used'}
+                      </div>
+                      <div
+                        style={{
+                          ...gridBodyCell,
+                          borderRight: '1px solid #e2e8f0',
+                          fontWeight: 700,
+                          color: isCredit ? '#059669' : '#dc2626',
+                          fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {signed}
+                      </div>
+                      <div
+                        style={{
+                          ...gridBodyCell,
+                          borderRight: '1px solid #e2e8f0',
+                          fontWeight: 600,
+                          fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        ₹{Number(tx.updatedBalance || 0).toFixed(2)}
+                      </div>
+                      <div style={gridBodyCell}>
+                        {dateStr}
+                        <br />
+                        <span style={{ color: '#94a3b8', fontWeight: 500 }}>{timeStr}</span>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
             </div>
           )}
         </div>
@@ -238,18 +320,26 @@ export default function WalletPage() {
   );
 }
 
-const thStyle = {
-  textAlign: 'left',
-  padding: '0.7rem 0.75rem',
-  fontSize: '0.86rem',
-  color: '#374151',
-  fontWeight: 700
+const gridHeadCell = {
+  minWidth: 0,
+  padding: '0.5rem 0.2rem',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textAlign: 'center',
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word'
 }
 
-const tdStyle = {
-  textAlign: 'left',
-  padding: '0.8rem 0.75rem',
-  fontSize: '0.9rem',
-  color: '#1f2937'
+const gridBodyCell = {
+  minWidth: 0,
+  padding: '0.5rem 0.2rem',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textAlign: 'center',
+  overflowWrap: 'break-word',
+  wordBreak: 'break-word'
 }
-

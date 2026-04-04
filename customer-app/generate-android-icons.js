@@ -30,7 +30,7 @@ const possibleSources = [
   path.join(__dirname, 'android', 'icon-source.jpg'),
   path.join(__dirname, 'android', 'icon-source.jpeg'),
   path.join(__dirname, 'src', 'assets', 'dailynk-logo.svg'),
-  path.join(__dirname, 'src', 'assets', 'dreamsync-logo.svg')
+  path.join(__dirname, 'src', 'assets', 'murugar-logo.svg')
 ];
 
 const resPath = path.join(__dirname, 'android', 'app', 'src', 'main', 'res');

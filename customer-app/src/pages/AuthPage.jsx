@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { setAuthToken } from '../utils/userUtils'
+import { setAuthToken, clearSession } from '../utils/userUtils'
 import { getApiUrl } from '../utils/apiConfig'
 
 export default function AuthPage() {
@@ -65,10 +65,7 @@ export default function AuthPage() {
                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
                 
                 if (lastLoginDate < threeMonthsAgo) {
-                  // Clear expired session data to allow fresh login
-                  localStorage.removeItem('lastLogin')
-                  localStorage.removeItem('lastLoginTime')
-                  localStorage.removeItem('user')
+                  clearSession()
                 }
               }
 

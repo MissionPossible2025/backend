@@ -53,7 +53,7 @@ async function uploadLogoViaAPI() {
       },
       body: JSON.stringify({
         logoBase64: dataUrl,
-        fileName: 'dreamsync-logo.svg'
+        fileName: 'murugar-logo.svg'
       })
     });
 

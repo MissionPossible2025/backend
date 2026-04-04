@@ -10,8 +10,10 @@ import BuyNowPage from './pages/BuyNowPage.jsx'
 import OrderSummary from './pages/OrderSummary.jsx'
 import OrderSuccess from './pages/OrderSuccess.jsx'
 import WalletPage from './pages/WalletPage.jsx'
+import ProductDetailPage from './pages/ProductDetailPage.jsx'
 import OrdersPage from './pages/OrdersPage.jsx'
 import OrderDetails from './pages/OrderDetails.jsx'
+import RequireAuth from './components/RequireAuth.jsx'
 import { setNavigationRef, setLocationRef } from './hooks/useBackButton'
 
 // Component to set up navigation ref for global back button handling
@@ -50,15 +52,16 @@ export default function App() {
       <Routes>
         <Route path="/" element={<SplashScreen />} />
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/buy-now" element={<BuyNowPage />} />
-        <Route path="/order-summary" element={<OrderSummary />} />
-        <Route path="/order-success" element={<OrderSuccess />} />
-        <Route path="/orders" element={<OrdersPage />} />
-        <Route path="/order/:id" element={<OrderDetails />} />
-        <Route path="/wallet" element={<WalletPage />} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/products" element={<RequireAuth><ProductsPage /></RequireAuth>} />
+        <Route path="/product/:productId" element={<RequireAuth><ProductDetailPage /></RequireAuth>} />
+        <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
+        <Route path="/buy-now" element={<RequireAuth><BuyNowPage /></RequireAuth>} />
+        <Route path="/order-summary" element={<RequireAuth><OrderSummary /></RequireAuth>} />
+        <Route path="/order-success" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
+        <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
+        <Route path="/order/:id" element={<RequireAuth><OrderDetails /></RequireAuth>} />
+        <Route path="/wallet" element={<RequireAuth><WalletPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

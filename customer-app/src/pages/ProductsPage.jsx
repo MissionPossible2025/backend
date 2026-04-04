@@ -14,7 +14,11 @@ export default function ProductsPage() {
     const handled = dispatchBackButton()
     // Only navigate if no UI was closed
     if (!handled) {
-      navigate(-1)
+      if (location.state?.backToDashboard) {
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate(-1)
+      }
     }
   }
 

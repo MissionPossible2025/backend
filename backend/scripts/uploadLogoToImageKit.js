@@ -47,7 +47,7 @@ async function uploadLogo() {
 
     // Read the logo file
     const logoBuffer = fs.readFileSync(logoPath);
-    const fileName = 'dreamsync-logo.svg';
+    const fileName = 'murugar-logo.svg';
     const folder = '/app-assets';
 
     // Upload to ImageKit

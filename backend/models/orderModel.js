@@ -5,8 +5,7 @@ const orderSchema = new mongoose.Schema({
   orderId: {
     type: String,
     required: true,
-    unique: true,
-    default: () => 'ORD' + Date.now() + Math.random().toString(36).substr(2, 5).toUpperCase()
+    unique: true
   },
   customer: {
     type: mongoose.Schema.Types.ObjectId,

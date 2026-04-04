@@ -121,6 +121,15 @@ function handleBackButton() {
       })
       return true // Prevent default behavior
     }
+
+    // After placing an order, /products is opened with state.backToDashboard — go to dashboard, not order summary
+    if (currentPath === '/products' && locationRef.state?.backToDashboard === true) {
+      if (navigationRef) {
+        console.log('[BackButton] Products after order complete → dashboard')
+        navigationRef('/dashboard', { replace: true })
+        return true
+      }
+    }
   }
   
   // If navigation ref is available, use React Router navigation

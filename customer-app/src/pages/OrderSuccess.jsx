@@ -26,7 +26,7 @@ export default function OrderSuccess() {
   }, [location.state, navigate])
 
   const handleContinueShopping = () => {
-    navigate('/products')
+    navigate('/products', { replace: true, state: { backToDashboard: true } })
   }
 
   const handleViewOrders = () => {
@@ -212,7 +212,7 @@ export default function OrderSuccess() {
           gap: '1rem'
         }}>
           <button
-            onClick={() => navigate('/products')}
+            onClick={handleContinueShopping}
             style={{
               flex: 1,
               padding: '1rem',

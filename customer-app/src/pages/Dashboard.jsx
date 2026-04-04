@@ -1,4 +1,5 @@
-import logo from '../assets/dreamsync-logo.svg'
+import footerLogo from '../assets/murugar-logo.svg'
+
 
 import { useState, useEffect , useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -216,19 +217,15 @@ export default function Dashboard() {
         }}>
          
             <img
-            src={logo}
-            alt="DreamSync Creations logo"
+            src={footerLogo}
+            alt="Sri Kumaran Distributors"
               style={{ height: '52px', width: 'auto' }}
-              onError={(e) => {
-                // Fallback to local logo if ImageKit URL fails to load
-                e.target.src = resolveImageUrl('/uploads/dreamsync-logo.svg')
-              }}
             />
           
           
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>App developed by</span>
-            <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', letterSpacing: '0.02em' }}>DreamSync Creations</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', letterSpacing: '0.02em' }}>Sri Kumaran Distributors</span>
+            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#000000' }}>Modakurichi</span>
           </div>
         </div>
       </footer>

@@ -5,6 +5,7 @@ import User from '../models/userModel.js';
 import WalletConfig from '../models/walletConfigModel.js';
 import Customer from '../models/customerModel.js';
 import WalletTransaction from '../models/walletTransactionModel.js';
+import { generateNextOrderId } from '../utils/orderIdGenerator.js';
 
 // Create new order
 export const createOrder = async (req, res) => {
@@ -133,8 +134,11 @@ export const createOrder = async (req, res) => {
       }
     }
 
+    const orderId = await generateNextOrderId();
+
     // Create order document first so we can reference orderId in wallet history.
     const order = new Order({
+      orderId,
       customer,
       customerDetails,
       items: processedItems,

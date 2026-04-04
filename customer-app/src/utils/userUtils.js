@@ -95,6 +95,22 @@ export const isProfileComplete = (userData) => {
 
 // Authentication utilities for token management with 7-day expiry
 
+/** Decode JWT payload (no signature verification — same as client-side expiry UX). */
+function decodeJwtPayload(token) {
+  if (!token || typeof token !== 'string') return null
+  try {
+    const parts = token.split('.')
+    if (parts.length < 2) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const pad = (4 - (base64.length % 4)) % 4
+    const padded = base64 + '='.repeat(pad)
+    const json = atob(padded)
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
 // Store authentication token with expiry timestamp (7 days from now)
 export const setAuthToken = (token) => {
   if (!token) return
@@ -106,31 +122,59 @@ export const setAuthToken = (token) => {
   localStorage.setItem('authTokenExpiry', expiryDate.toISOString())
 }
 
-// Get authentication token
+// Get authentication token (standalone key, or token embedded in persisted user payload)
 export const getAuthToken = () => {
-  return localStorage.getItem('authToken')
+  const direct = localStorage.getItem('authToken')
+  if (direct) return direct
+  try {
+    const raw = localStorage.getItem('user')
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    return data?.token || null
+  } catch {
+    return null
+  }
+}
+
+/** Remove session data when logging out or when token is invalid/expired. */
+export const clearSession = () => {
+  clearAuthToken()
+  localStorage.removeItem('user')
+  localStorage.removeItem('lastLogin')
+  localStorage.removeItem('lastLoginTime')
 }
 
 // Check if authentication token is valid (exists and not expired)
 export const isAuthenticated = () => {
   const token = getAuthToken()
   const expiryStr = localStorage.getItem('authTokenExpiry')
-  
-  // No token or no expiry means not authenticated
-  if (!token || !expiryStr) {
+  const now = Date.now()
+
+  if (!token) {
+    if (localStorage.getItem('user')) {
+      clearSession()
+    }
     return false
   }
-  
-  // Check if token has expired
+
+  const payload = decodeJwtPayload(token)
+  if (payload?.exp != null && now >= payload.exp * 1000) {
+    clearSession()
+    return false
+  }
+
+  // 7-day app session (set on login via setAuthToken)
+  if (!expiryStr) {
+    clearSession()
+    return false
+  }
+
   const expiryDate = new Date(expiryStr)
-  const now = new Date()
-  
-  if (now > expiryDate) {
-    // Token expired, clear it
-    clearAuthToken()
+  if (Number.isNaN(expiryDate.getTime()) || now > expiryDate.getTime()) {
+    clearSession()
     return false
   }
-  
+
   return true
 }
 

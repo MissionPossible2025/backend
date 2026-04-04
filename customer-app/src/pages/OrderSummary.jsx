@@ -410,7 +410,13 @@ export default function OrderSummary() {
           setSuccessPopup((prev) => ({ ...prev, isOpen: false }))
           setUseWallet(false)
           setWalletToUse(0)
-          navigate('/products')
+          navigate('/products', {
+            replace: true,
+            state: {
+              backToDashboard: true,
+              searchTerm: location.state?.searchTerm || ''
+            }
+          })
         }}
       />
       <style>{`

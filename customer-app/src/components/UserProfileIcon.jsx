@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { clearAuthToken } from '../utils/userUtils'
+import { clearSession } from '../utils/userUtils'
 import { useBackButton } from '../hooks/useBackButton'
 
 export default function UserProfileIcon({ onProfileClick }) {
@@ -18,8 +18,7 @@ export default function UserProfileIcon({ onProfileClick }) {
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem('user')
-    clearAuthToken() // Clear authentication token and expiry
+    clearSession()
     window.location.href = '/auth'
   }
 
