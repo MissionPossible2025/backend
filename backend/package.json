@@ -6,7 +6,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "cleanup": "node scripts/cleanupData.js"
+    "cleanup": "node scripts/cleanupData.js",
+    "clear-orders": "node scripts/clearAllOrders.js"
   },
   "keywords": [],
   "author": "",

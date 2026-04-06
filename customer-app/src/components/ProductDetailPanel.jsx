@@ -26,6 +26,15 @@ export default function ProductDetailPanel({
   return (
     <>
       <style>{`
+        /* Full-page product: one scroll surface (document). No nested overflow:auto inside. */
+        .product-detail-page-root {
+          min-height: 100dvh;
+          background: #f8fafc;
+          padding-bottom: var(--safe-bottom, 0px);
+          overflow-x: hidden;
+          overflow-y: visible;
+        }
+
         .product-detail-modal-overlay {
           position: fixed;
           top: 0;
@@ -53,9 +62,7 @@ export default function ProductDetailPanel({
           padding: 2rem;
           max-width: 800px;
           width: 100%;
-          max-height: calc(100vh - max(4rem, calc(var(--safe-top, 0px) + var(--safe-bottom, 0px) + 2rem)));
-          overflow-y: auto;
-          overflow-x: hidden;
+          overflow: visible;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
           position: relative;
           box-sizing: border-box;
@@ -95,10 +102,12 @@ export default function ProductDetailPanel({
           color: #059669;
         }
         
-        /* Container for product images to ensure consistent sizing */
+        /* Fixed aspect + max-height avoids vh jank and reserves space before image load */
         .product-detail-image-container {
           width: 100%;
-          height: 400px;
+          aspect-ratio: 1;
+          max-height: 400px;
+          min-height: 220px;
           border-radius: 12px;
           background-color: #f9fafb;
           display: flex;
@@ -161,11 +170,7 @@ export default function ProductDetailPanel({
             padding-top: calc(1rem + 1rem);
             max-width: 100%;
             width: 100%;
-            max-height: calc(100dvh - var(--safe-top, 0px) - 2rem);
-            height: auto;
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
+            overflow: visible;
             box-sizing: border-box;
             margin-top: 0;
           }
@@ -194,8 +199,9 @@ export default function ProductDetailPanel({
           }
           
           .product-detail-image-container {
-            height: 300px;
-            max-height: 50vh;
+            max-height: min(320px, 85vw);
+            min-height: 220px;
+            aspect-ratio: 1;
             margin-bottom: 0.75rem;
           }
           
@@ -268,7 +274,7 @@ export default function ProductDetailPanel({
           }
         }
       `}</style>
-      <div className="product-detail-page-root" style={{ minHeight: '100dvh', background: '#f8fafc', paddingBottom: 'var(--safe-bottom)', overflowX: 'hidden' }}>
+      <div className="product-detail-page-root">
         <div style={{ maxWidth: 'min(800px, 100%)', margin: '0 auto', padding: '0 1rem 2rem', boxSizing: 'border-box' }}>
           <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button type="button" onClick={onBack} style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white', color: '#374151', cursor: 'pointer', fontWeight: 600 }}>← Back</button>
@@ -412,7 +418,7 @@ export default function ProductDetailPanel({
                           border: currentImageIndex === index ? '2px solid #059669' : '1px solid #e2e8f0',
                           cursor: 'pointer',
                           opacity: currentImageIndex === index ? 1 : 0.7,
-                          transition: 'all 0.2s ease'
+                          transition: 'border-color 0.2s ease, opacity 0.2s ease'
                         }}
                       />
                     ))}

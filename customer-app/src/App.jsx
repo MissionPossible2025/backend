@@ -10,6 +10,7 @@ import BuyNowPage from './pages/BuyNowPage.jsx'
 import OrderSummary from './pages/OrderSummary.jsx'
 import OrderSuccess from './pages/OrderSuccess.jsx'
 import WalletPage from './pages/WalletPage.jsx'
+import OffersPage from './pages/OffersPage.jsx'
 import ProductDetailPage from './pages/ProductDetailPage.jsx'
 import OrdersPage from './pages/OrdersPage.jsx'
 import OrderDetails from './pages/OrderDetails.jsx'
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
         <Route path="/order/:id" element={<RequireAuth><OrderDetails /></RequireAuth>} />
         <Route path="/wallet" element={<RequireAuth><WalletPage /></RequireAuth>} />
+        <Route path="/offers" element={<RequireAuth><OffersPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

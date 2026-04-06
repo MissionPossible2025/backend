@@ -46,6 +46,38 @@ function validateAndNormalizeSlabs(slabs) {
   return normalized;
 }
 
+/**
+ * Public: all sellers' cashback slab configs (for customer-app Offers screen).
+ * No auth — only exposes min/max/percentage tiers already managed in seller wallet settings.
+ */
+export const getPublicCashbackOffers = async (req, res) => {
+  try {
+    // Always fresh (seller may clear slabs in wallet management; avoid stale CDN/browser cache)
+    res.set(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, proxy-revalidate'
+    );
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    const configs = await WalletConfig.find({}).lean();
+    const offers = configs
+      .filter((c) => Array.isArray(c.slabs) && c.slabs.length > 0)
+      .map((c) => ({
+        sellerId: String(c.sellerId),
+        slabs: c.slabs.map((s) => ({
+          minAmount: Number(s.minAmount),
+          maxAmount: Number(s.maxAmount),
+          percentage: Number(s.percentage)
+        }))
+      }));
+    res.json({ offers });
+  } catch (error) {
+    console.error('Error fetching public cashback offers:', error);
+    res.status(500).json({ error: 'Failed to fetch cashback offers' });
+  }
+};
+
 export const getWalletConfigForSeller = async (req, res) => {
   try {
     const { sellerId } = req.params;

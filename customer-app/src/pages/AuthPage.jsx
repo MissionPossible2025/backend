@@ -27,10 +27,11 @@ export default function AuthPage() {
         color: '#000000',
         boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
       }}>
-        <h1 style={{ margin: 0, marginBottom: '0.25rem', fontSize: '1.75rem', fontWeight: 700, color: '#000000' }}>
+        <h1 style={{ margin: 0, marginBottom: '0.25rem', fontSize: '1.75rem', fontWeight: 700 }}>
           Access DaiLynk
         </h1>
-        <p style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000000' }}>
+
+        <p style={{ marginTop: 0, marginBottom: '1.5rem' }}>
           Enter your details to access the store
         </p>
 
@@ -39,67 +40,90 @@ export default function AuthPage() {
             e.preventDefault()
             setError('')
             setLoading(true)
+
             try {
               const form = new FormData(e.currentTarget)
               const phone = form.get('phone')
               const name = form.get('name')
 
-              // Check if phone number is permitted by seller
-              const checkRes = await fetch(`${getApiUrl()}/customers/check`, {  
+              // ================= CHECK API =================
+              const checkUrl = `${getApiUrl()}/customers/check`
+              console.log("🔵 CHECK API:", checkUrl)
+
+              const checkRes = await fetch(checkUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone })
               })
-              const checkData = await checkRes.json()
-              
+
+              const checkText = await checkRes.text()
+              console.log("🔵 CHECK RAW:", checkText)
+
+              const checkData = JSON.parse(checkText)
+
               if (!checkRes.ok) {
-                throw new Error('Your phone number is not registered. Please contact the store owner to get access.')
+                throw new Error('Entered Phone number is not registered by the seller')
               }
 
-              // Clear old session data if it's expired (allow fresh login)
-              // The backend will handle session validation, so we just clean up stale localStorage
+              // ================= CLEAN OLD SESSION =================
               const lastLogin = localStorage.getItem('lastLogin')
               if (lastLogin) {
                 const lastLoginDate = new Date(lastLogin)
                 const threeMonthsAgo = new Date()
                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
-                
+
                 if (lastLoginDate < threeMonthsAgo) {
                   clearSession()
                 }
               }
 
-              // Access the app (same as login/signup)
-              // const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/customers/login`, {
-                const res = await fetch(`${getApiUrl()}/customers/login`, {  
-              method: 'POST',
+              // ================= LOGIN API =================
+              const loginUrl = `${getApiUrl()}/customers/login`
+
+              console.log("🔥 BASE API:", getApiUrl())
+              console.log("🔥 LOGIN API:", loginUrl)
+
+              const res = await fetch(loginUrl, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone, name })
               })
-              const data = await res.json()
-              if (!res.ok) throw new Error(data.error || 'Access failed')
-              
-              // Ensure profileComplete flag is properly stored
+
+              console.log("🔥 STATUS:", res.status)
+
+              const text = await res.text()
+              console.log("🔥 RAW RESPONSE:", text)
+
+              const data = JSON.parse(text)
+
+              if (!res.ok) throw new Error(data.error || 'Login failed')
+
+              console.log("🔥 SUCCESS:", data)
+
+              // ================= SAVE USER =================
               const userData = {
                 ...data,
                 customer: {
                   ...data.customer,
-                  profileComplete: data.customer?.profileComplete !== undefined ? data.customer.profileComplete : false
+                  profileComplete:
+                    data.customer?.profileComplete !== undefined
+                      ? data.customer.profileComplete
+                      : false
                 }
               }
-              
-              // Store user data
+
               localStorage.setItem('user', JSON.stringify(userData))
               localStorage.setItem('lastLogin', new Date().toISOString())
               localStorage.setItem('lastLoginTime', new Date().toISOString())
-              
-              // Store authentication token with 7-day expiry
+
               if (data.token) {
                 setAuthToken(data.token)
               }
-              
+
               window.location.href = '/dashboard'
+
             } catch (err) {
+              console.error("❌ ERROR:", err.message)
               setError(err.message)
             } finally {
               setLoading(false)
@@ -108,36 +132,17 @@ export default function AuthPage() {
           style={{ display: 'grid', gap: '0.85rem' }}
         >
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', color: '#000000' }}>Name</label>
-            <input
-              name="name"
-              type="text"
-              required
-              placeholder="Enter your name"
-              style={inputStyle}
-            />
+            <label>Name</label>
+            <input name="name" type="text" required placeholder="Enter your name" style={inputStyle} />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', color: '#000000' }}>Phone Number</label>
-            <input
-              name="phone"
-              type="tel"
-              required
-              placeholder="Enter your phone number"
-              style={inputStyle}
-            />
+            <label>Phone Number</label>
+            <input name="phone" type="tel" required placeholder="Enter phone" style={inputStyle} />
           </div>
 
           {error && (
-            <div style={{ 
-              color: '#dc2626', 
-              fontSize: '0.95rem',
-              padding: '0.75rem',
-              backgroundColor: '#fef2f2',
-              borderRadius: '8px',
-              border: '1px solid #fecaca'
-            }}>
+            <div style={errorStyle}>
               {error}
             </div>
           )}
@@ -147,22 +152,15 @@ export default function AuthPage() {
           </button>
         </form>
 
-        <div style={{ 
-          marginTop: '1.5rem', 
-          padding: '1rem', 
-          backgroundColor: '#eff6ff', 
-          borderRadius: '8px',
-          border: '1px solid #bfdbfe'
-        }}>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#000000' }}>
-            <strong>Note:</strong> Only phone numbers registered by the store owner can access this app. 
-            If you can't access, please contact the store owner to get access.
-          </p>
+        <div style={noteStyle}>
+          <b>Note: </b> Only phone numbers by the store owner can access this app. If you can't access , please contact the store owner to get access.
         </div>
       </div>
     </div>
   )
 }
+
+// ================= STYLES =================
 
 const inputStyle = {
   width: '100%',
@@ -170,15 +168,13 @@ const inputStyle = {
   borderRadius: '10px',
   border: '1px solid #d1d5db',
   backgroundColor: '#ffffff',
-  color: '#000000',
   outline: 'none',
 }
 
 const primaryButtonStyle = {
   marginTop: '0.5rem',
   width: '100%',
-          padding: '0.95rem 1rem',
-          minHeight: '48px',
+  padding: '0.95rem 1rem',
   borderRadius: '10px',
   border: 'none',
   background: '#000000',
@@ -187,13 +183,16 @@ const primaryButtonStyle = {
   cursor: 'pointer',
 }
 
-const linkButtonStyle = {
-  background: 'transparent',
-  color: '#60a5fa',
-  border: 'none',
-  cursor: 'pointer',
-  textDecoration: 'underline',
-  padding: 0,
+const errorStyle = {
+  color: '#dc2626',
+  padding: '0.75rem',
+  backgroundColor: '#fef2f2',
+  borderRadius: '8px'
 }
 
-
+const noteStyle = {
+  marginTop: '1rem',
+  padding: '1rem',
+  backgroundColor: '#eff6ff',
+  borderRadius: '8px'
+}

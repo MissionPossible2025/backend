@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  getPublicCashbackOffers,
   getWalletConfigForSeller,
   upsertWalletConfigForSeller,
   getWalletBalanceForCustomer,
@@ -7,6 +8,9 @@ import {
 } from '../controllers/walletController.js';
 
 const router = express.Router();
+
+// Customer-facing: cashback tiers (read-only)
+router.get('/cashback-offers', getPublicCashbackOffers);
 
 // Seller wallet configuration (cashback slabs)
 router.get('/config/:sellerId', getWalletConfigForSeller);

@@ -3,7 +3,7 @@
   "appName": "DaiLynk",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "http"
   },
   "plugins": {
     "StatusBar": {
