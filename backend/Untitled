@@ -1,0 +1,10 @@
+MONGO_URI=mongodb://user01:U5aZ%21Mjxve85PaP@ac-ciah2oy-shard-00-00.kr7quco.mongodb.net:27017,ac-ciah2oy-shard-00-01.kr7quco.mongodb.net:27017,ac-ciah2oy-shard-00-02.kr7quco.mongodb.net:27017/sellercustomerdb?ssl=true&replicaSet=atlas-i8zv5o-shard-0&authSource=admin&appName=Cluster0 
+PUBLIC_BASE_URL=http://localhost:5000/api
+
+PORT=5000
+
+IMAGEKIT_PUBLIC_KEY=public_Ew8dNpmeMiV6MptYrsTyt86tEpg=
+IMAGEKIT_PRIVATE_KEY=private_2QfGpVIvgAs55dO6bsgyhxk7CzI=
+IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/ijeby8sgw
+
+JWT_SECRET=7c175f0487d7b2aad6207d63782fbbe4ad65a7fd37897c8e8a3ede49f4a7dfeedc03be2625707a3acea7ce55c36982c346e4b2f57091ec87080a289acbe5fc40
